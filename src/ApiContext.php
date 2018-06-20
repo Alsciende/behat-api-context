@@ -6,20 +6,17 @@ use Assert\Assertion;
 use Behat\Behat\Context\Context;
 use Behat\Gherkin\Node\PyStringNode;
 use Symfony\Component\BrowserKit\Client;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\PropertyAccess\PropertyAccess;
 
 /**
  * @author Alsciende <alsciende@icloud.com>
- * @see https://github.com/imbo/behat-api-extension
+ * @see    https://github.com/imbo/behat-api-extension
  */
-class ApiContext implements Context
+class ApiContext implements Context, \ArrayAccess
 {
+    use ArrayAccessTrait;
+
     /**
-     * Request options
-     *
-     * Options to send with the request.
-     *
      * @var array
      */
     private $requestOptions = [];
@@ -64,30 +61,15 @@ class ApiContext implements Context
      */
     private $force;
 
-    /**
-     * @var Response|null
-     */
-    private $response;
-
-    /**
-     * @var array
-     */
-    public $expressionLanguageData = [];
-
     public function __construct(Client $client)
     {
         $this->client = $client;
     }
 
-    public function getResponse(): ?Response
-    {
-        return $this->response;
-    }
-
     /**
      * Request a path
      *
-     * @param string $path The path to request
+     * @param string $path   The path to request
      * @param string $method The HTTP method to use
      * @return self
      *
@@ -121,9 +103,9 @@ class ApiContext implements Context
      * Update the HTTP method of the request
      *
      * @param string  $method The HTTP method
-     * @param boolean $force Force the HTTP method. If set to false the method set CAN be
-     *                       overridden (this occurs for instance when adding form parameters to the
-     *                       request, and not specifying HTTP POST for the request)
+     * @param boolean $force  Force the HTTP method. If set to false the method set CAN be
+     *                        overridden (this occurs for instance when adding form parameters to the
+     *                        request, and not specifying HTTP POST for the request)
      * @return self
      */
     private function setRequestMethod(string $method, bool $force = true)
@@ -138,7 +120,12 @@ class ApiContext implements Context
     private function sendRequest()
     {
         $this->client->request($this->method, $this->path, $this->parameters, $this->files, $this->server, $this->content);
-        $this->response = $this->client->getResponse();
+        $response = $this->client->getResponse();
+        $this['response'] = [
+            'status'  => $response->getStatusCode(),
+            'headers' => $response->headers->all(),
+            'content' => $response->getContent(),
+        ];
     }
 
     /**
@@ -154,7 +141,7 @@ class ApiContext implements Context
     {
         $this->requireResponse();
         Assertion::same(
-            $actual = $this->response->getStatusCode(),
+            $actual = $this['response']['status'],
             $expected = $this->validateResponseCode($code),
             sprintf('Expected response code %d, got %d.', $expected, $actual)
         );
@@ -165,7 +152,7 @@ class ApiContext implements Context
      */
     private function requireResponse()
     {
-        Assertion::notNull($this->response, 'The request has not been made yet, so no response object exists.');
+        Assertion::keyIsset($this, 'response', 'The request has not been made yet, so no response object exists.');
     }
 
     /**
@@ -211,7 +198,7 @@ class ApiContext implements Context
         $propertyAccessor = PropertyAccess::createPropertyAccessor();
 
         return preg_replace_callback('/\-\<(.*?)\>\-/U', function ($matches) use ($propertyAccessor) {
-            return $propertyAccessor->getValue($this->expressionLanguageData, trim($matches[1]));
+            return $propertyAccessor->getValue($this, trim($matches[1]));
         }, $template);
     }
 
@@ -231,7 +218,7 @@ class ApiContext implements Context
     {
         $this->requireResponse();
         Assertion::same(
-            $actual = $this->response->headers->get($header),
+            $actual = $this['response']['headers'][$header],
             $expected,
             sprintf('Expected response header %s, got %s.', $expected, $actual)
         );
