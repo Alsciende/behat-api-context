@@ -6,8 +6,8 @@ use Assert\Assertion;
 use Behat\Behat\Context\Context;
 use Behat\Gherkin\Node\PyStringNode;
 use Symfony\Component\BrowserKit\Client;
-use Symfony\Component\ExpressionLanguage\ExpressionLanguage;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\PropertyAccess\PropertyAccess;
 
 /**
  * @author Alsciende <alsciende@icloud.com>
@@ -208,10 +208,10 @@ class ApiContext implements Context
      */
     private function parseExpressionLanguageTemplate(string $template)
     {
-        $expressionLanguage = new ExpressionLanguage();
+        $propertyAccessor = PropertyAccess::createPropertyAccessor();
 
-        return preg_replace_callback('/{{(.*?)}}/U', function ($matches) use ($expressionLanguage) {
-            return $expressionLanguage->evaluate(trim($matches[1]), ['data' => $this->expressionLanguageData]);
+        return preg_replace_callback('/\-\<(.*?)\>\-/U', function ($matches) use ($propertyAccessor) {
+            return $propertyAccessor->getValue($this->expressionLanguageData, trim($matches[1]));
         }, $template);
     }
 
