@@ -24,6 +24,10 @@
         "symfony/expression-language": "^4.1",
         "symfony/http-kernel": "^4.1"
     },
+    "suggest": {
+        "alsciende/behat-json-context": "Allows to test JSON responses",
+        "alsciende/behat-doctrine-context": "Allows to test Doctrine data"
+    },
     "config": {
         "sort-packages": true
     },
